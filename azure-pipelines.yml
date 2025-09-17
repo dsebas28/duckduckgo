@@ -1,19 +1,35 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- master
+- main   # Rama que dispara la pipeline
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'   # Agente hospedado en Azure
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+# --- Paso 1: Checkout del repositorio principal ---
+- checkout: self
+  fetchDepth: 1    # Trae solo el último commit (más rápido)
 
+# --- Paso 2: Checkout de otro repositorio externo ---
+- checkout: git://MyProject/OtherRepo
+  persistCredentials: true   # Mantener credenciales si luego haces push
+  clean: true                # Limpia antes de hacer checkout
+
+# --- Paso 3: Restaurar dependencias Maven ---
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean install'
+    publishJUnitResults: true
+
+# --- Paso 4: Ejecutar pruebas ---
 - script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+    echo "Ejecutando pruebas unitarias..."
+    mvn test
+  displayName: "Pruebas con Maven"
+
+# --- Paso 5: Publicar artefacto ---
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: 'target'
+    artifactName: 'drop'
+    publishLocation: 'Container'
